@@ -1,53 +1,53 @@
 # Dev Test – AI Data Engineer Solution
 
-Este repositorio contiene la solución al reto para el puesto de AI Data Engineer. Incluye workflow de ingestión de datos, modelado de KPIs en SQL, acceso para analistas, y una demo de agente para consultas en lenguaje natural.
+This repository contains the solution for the AI Data Engineer position challenge. It includes a data ingestion workflow, KPI modeling in SQL, analyst access capabilities, and a demo agent for natural language queries.
 
-## 1. Requisitos
+## 1. Requirements
 
-- Python 3.8+ (si usas scripts complementarios)
-- Javscript ES6 (ECMAScript 6 o superior)
-- BigQuery (o el warehouse que elegiste)
-- n8n (automatización de workflows SQL/API)
+- Python 3.8+ (if using complementary scripts)
+- JavaScript ES6 (ECMAScript 6 or higher)
+- BigQuery (or your chosen warehouse)
+- n8n (SQL/API workflow automation)
 
-# Ingesta de Datos (ETL) con n8n
+# Data Ingestion (ETL) with n8n
 
-El proceso de ingesta está totalmente automatizado a través de un workflow en n8n, permitiendo cargar el dataset ads_spend.csv, limpiar, transformar y enriquecer los datos antes de almacenarlos en el warehouse (BigQuery/DuckDB).
+The ingestion process is fully automated through an n8n workflow, enabling the loading of the ads_spend.csv dataset, cleaning, transforming, and enriching the data before storing it in the warehouse (BigQuery/DuckDB).
 
-## Descripción del Flujo 
+## Workflow Description
 
-- Disparador manual
+- **Manual Trigger**
 
-El flujo inicia al hacer clic en Execute workflow.
+The flow starts when clicking "Execute workflow".
 
-- Nodo HTTP Request
+- **HTTP Request Node**
 
-Descarga el archivo CSV usando la URL pública del raw ads_spend.csv en GitHub.
+Downloads the CSV file using the public raw URL of ads_spend.csv on GitHub.
 
-Se configura la cabecera User-Agent para evitar restricciones al descargar.
+Configures the User-Agent header to avoid download restrictions.
 
-- Nodo Code (JavaScript personalizado)
+- **Code Node (Custom JavaScript)**
 
-Procesa el contenido CSV desde texto plano, convirtiendo cada registro en un objeto JSON estructurado y enriquecido con métricas calculadas.
+Processes CSV content from plain text, converting each record into a structured JSON object enriched with calculated metrics.
 
-Valida la estructura de los datos y reporta errores si el CSV está vacío o corrupto.
+Validates data structure and reports errors if the CSV is empty or corrupted.
 
-Realiza parsing de los campos numéricos y calcula métricas clave para cada registro:
+Parses numeric fields and calculates key metrics for each record:
 
-![alt text](image-1.png)
+![alt text](images/image-1.png)
 
-El código completo se incluye abajo para referencia y puede ser reutilizado/adaptado directamente en n8n.
+The complete code is included below for reference and can be reused/adapted directly in n8n.
 
 ```javascript
-// PROCESAR CSV desde JSON - VERSIÓN PARA N8N (RECORDS INDIVIDUALES)
-console.log('=== INICIANDO PROCESAMIENTO ===');
+// PROCESS CSV from JSON - N8N VERSION 
+console.log('=== STARTING PROCESSING ===');
 
-// Verificar estructura de items
+// Verify items structure
 if (!items || items.length === 0) {
-  console.log('ERROR: No hay items disponibles');
-  return [{ json: { error: 'No hay datos disponibles' } }];
+  console.log('ERROR: No items available');
+  return [{ json: { error: 'No data available' } }];
 }
 
-// Buscar los datos CSV
+// Find CSV data
 let csvData = null;
 if (items[0].data) {
   csvData = items[0].data;
@@ -58,18 +58,18 @@ if (items[0].data) {
 }
 
 if (!csvData || typeof csvData !== 'string') {
-  console.log('ERROR: No se encontraron datos CSV válidos');
-  return [{ json: { error: 'Datos CSV no encontrados' } }];
+  console.log('ERROR: No valid CSV data found');
+  return [{ json: { error: 'CSV data not found' } }];
 }
 
-console.log('✅ CSV Data encontrado');
+console.log('CSV Data found');
 
-// Procesar CSV
+// Process CSV
 const lines = csvData.split('\n').filter(line => line.trim());
 const headers = lines[0].split(',');
 console.log('Headers:', headers);
 
-// Convertir a objetos
+// Convert to objects
 const data = [];
 for (let i = 1; i < lines.length; i++) {
   const values = lines[i].split(',');
@@ -82,17 +82,17 @@ for (let i = 1; i < lines.length; i++) {
   }
 }
 
-console.log(`✅ Procesadas ${data.length} filas`);
+console.log(`Processed ${data.length} rows`);
 
-// RETORNAR RECORDS INDIVIDUALES CON MÉTRICAS CALCULADAS
+// RETURN INDIVIDUAL RECORDS WITH CALCULATED METRICS
 return data.map(row => {
-  // Convertir valores a números
+  // Convert values to numbers
   const spend = parseFloat(row.spend) || 0;
   const clicks = parseInt(row.clicks) || 0;
   const impressions = parseInt(row.impressions) || 0;
   const conversions = parseInt(row.conversions) || 0;
   
-  // Calcular métricas por fila
+  // Calculate metrics per row
   const ctr = impressions > 0 ? parseFloat((clicks / impressions * 100).toFixed(2)) : 0;
   const conversionRate = clicks > 0 ? parseFloat((conversions / clicks * 100).toFixed(2)) : 0;
   const cpc = clicks > 0 ? parseFloat((spend / clicks).toFixed(2)) : 0;
@@ -114,62 +114,64 @@ return data.map(row => {
       conversion_rate: conversionRate,
       cpc: cpc,
       cost_per_conversion: costPerConversion,
-      // Campos adicionales útiles para análisis
+      // Additional useful fields for analysis
       impression_share: impressions > 0 ? 1 : 0,
-      revenue_estimate: conversions * 50, // Estimado $50 por conversión
+      revenue_estimate: conversions * 50, // Estimated $50 per conversion
       profit_estimate: (conversions * 50) - spend
     }
   };
 });
 ```
 
-Inserta los objetos resultantes en la tabla del warehouse con columnas estándar + metadatos adicionales si aplica.
+Inserts the resulting objects into the warehouse table with standard columns + additional metadata if applicable.
 
-Se incluye el campo de fecha de carga y nombre de archivo para trazabilidad.
+Includes the load date field and filename for traceability.
 
-Ejemplo de Métrica Calculada por Registro
+## Example of Calculated Metric per Record
 
 | date       | platform | campaign   | spend | clicks | impressions | conversions | ctr (%) | conversion_rate (%) | cpc  | cost_per_conversion | revenue_estimate | profit_estimate |
 |------------|----------|------------|-------|--------|-------------|-------------|---------|--------------------|------|---------------------|------------------|-----------------|
 | 2025-08-01 | Google   | Brand Ad   | 25.10 | 40     | 1000        | 5           | 4.00    | 12.50              | 0.63 | 5.02                | 250              | 224.90          |
 
-Trazabilidad y Metadatos
-Cada registro almacenado incluye los campos load_date (fecha de ingestión) y source_file_name para asegurar la trazabilidad y el control de versiones del dataset.
+## Traceability and Metadata
 
-Control y Validación
-El workflow reporta automáticamente errores y estadísticos (número de filas procesadas, estructura de encabezados) vía consola/logs en n8n para facilitar el monitoreo.
+Each stored record includes the `load_date` (ingestion date) and `source_file_name` fields to ensure traceability and dataset version control.
 
-## Modelado de KPIs en SQL
+## Control and Validation
 
-El proceso para calcular KPIs críticos de marketing—CAC (Costo de Adquisición de Cliente) y ROAS (Retorno sobre la Inversión Publicitaria)—se gestiona mediante dos nodos clave en el workflow de n8n: uno para preparar los parámetros y otro para ejecutar la consulta en BigQuery. Esto permite comparar el rendimiento entre los últimos 30 días y los 30 días previos de forma automatizada.
+The workflow automatically reports errors and statistics (number of processed rows, header structure) via console/logs in n8n to facilitate monitoring.
 
-1. Parámetros Dinámicos: Node Code
-Se define un nodo de código que toma la configuración de rangos de fecha enviada por el Webhook. Así, el análisis es dinámico y parametrizable desde la API:
+## KPI Modeling in SQL
+
+The process for calculating critical marketing KPIs—CAC (Customer Acquisition Cost) and ROAS (Return on Advertising Spend)—is managed through two key nodes in the n8n workflow: one for preparing parameters and another for executing the query in BigQuery. This enables automated comparison of performance between the last 30 days and the previous 30 days.
+
+### 1. Dynamic Parameters: Code Node
+
+A code node is defined that takes the date range configuration sent by the Webhook. Thus, the analysis is dynamic and parameterizable from the API:
 
 ```javascript
-// Obtener el objeto 'query' de la entrada del webhook.
+// Get the 'query' object from the webhook input.
 const query = $input.item.json.query;
 const end_date = (query && query.end_date) ? query.end_date : '2025-07-01';
 const days = (query && query.days) ? query.days : 30;
-// Devolver el objeto JSON para el siguiente nodo (SQL)
+// Return the JSON object for the next node (SQL)
 return [{
   json: {
     end_date: end_date,
     days: parseInt(days, 10)
   }
 }];
-
 ```
 
-2. SQL Query Parametrizado
-El nodo "Execute SQL query" utiliza los parámetros (end_date, days) para comparar los KPIs entre los dos periodos, agrupando y calculando todo en una sola consulta:
+### 2. Parameterized SQL Query
+
+The "Execute SQL query" node uses the parameters (end_date, days) to compare KPIs between the two periods, grouping and calculating everything in a single query:
 
 ![alt text](image-2.png)
 
-Resultado en formato tabla con valores actuales, previos y sus deltas (absoluto y porcentual):
+Result in table format with current, previous values and their deltas (absolute and percentage):
 
-```
-sql
+```sql
 WITH date_ranges AS (
     SELECT
         DATE_SUB(CAST('{{ $json.end_date }}' AS DATE), INTERVAL {{ $json.days }} DAY) AS current_period_start,
@@ -231,32 +233,34 @@ FROM
     comparison_table;
 ```
 
-3. Resultado: Tabla Comparativa
+### 3. Result: Comparative Table
 
 | metric | last_30_days | prior_30_days | delta_absolute | delta_percentage |
 |--------|--------------|---------------|----------------|------------------|
 | CAC    | 5.02         | 4.65          | 0.37           | 7.96%            |
 | ROAS   | 4.80         | 4.40          | 0.40           | 9.09%            |
 
-Este enfoque permite análisis flexible y comparativo de KPIs en distintos periodos, facilitando la interpretación para analistas y decisores. Los resultados pueden consumirse vía API, integración n8n, o directamente en la base de datos.
+This approach enables flexible and comparative analysis of KPIs across different periods, facilitating interpretation for analysts and decision-makers. Results can be consumed via API, n8n integration, or directly in the database.
 
+# Metrics Exposure for Analysts (Part 3)
 
+To facilitate direct and simple access to KPIs, a lightweight API endpoint has been implemented with n8n. Analysts can query metrics by making HTTP GET requests, specifying date ranges if desired. The result is delivered in JSON format, ready for use in dashboards, reports, or analysis scripts.
 
-# Exposición de Métricas para Analistas (Parte 3)
-Para facilitar el acceso directo y simple a los KPIs, se ha implementado un endpoint API ligero con n8n. Los analistas pueden consultar las métricas realizando peticiones HTTP tipo GET, especificando rangos de fechas si lo desean. El resultado se entrega en formato JSON, listo para usarse en dashboards, reportes, o scripts de análisis.
+## API Flow
 
-Flujo API
-El workflow de n8n expone un Webhook en la ruta:
-
-text
-GET https://ccartag1906.app.n8n.cloud/webhook-test/metrics
-Permite parámetros como start y end para personalizar el rango temporal analizado.
-
-Ejemplo de Consulta
-Un analista puede obtener los KPIs haciendo un request GET al endpoint, recibiendo la respuesta en JSON estructurado:
+The n8n workflow exposes a Webhook at the route:
 
 ```
-json
+GET https://ccartag1906.app.n8n.cloud/webhook-test/metrics
+```
+
+Allows parameters such as `start` and `end` to customize the analyzed time range.
+
+## Query Example
+
+An analyst can obtain KPIs by making a GET request to the endpoint, receiving the response in structured JSON:
+
+```json
 {
   "metric": "CAC",
   "last_30_days": 29.81,
@@ -264,55 +268,49 @@ json
   "delta_absolute": -2.46,
   "delta_percentage": "-7.63%"
 }
-
 ```
 
-![
-](image-3.png)
+![API Response](image-3.png)
 
-- Integración
+## Integration
 
-El acceso es abierto (sin autenticación para pruebas/demo).
+- Access is open (no authentication for testing/demo).
+- The result includes relevant values for CAC and ROAS according to the requested date range, along with absolute and relative deltas.
+- Can be easily visualized and consumed with tools like Postman, Python/R scripts, or BI dashboards.
 
-El resultado incluye los valores relevantes para CAC y ROAS según el rango de fechas solicitado, junto con el delta absoluto y relativo.
+This approach simplifies access to and exploitation of KPIs from any environment, eliminating the need for advanced technical knowledge for end users.
 
-Se puede visualizar y consumir fácilmente con herramientas como Postman, scripts Python/R, o dashboards BI.
+# AI Agent: Natural Language Query Demo (Bonus)
 
-Este enfoque simplifica el acceso y explotación de los KPIs desde cualquier entorno, eliminando la necesidad de conocimiento técnico avanzado para el usuario final.
+As an additional demonstration, an n8n workflow was implemented to resolve typical analyst questions using natural language. The flow combines a chat model (OpenAI) and an automatic query tool that translates the user's request into appropriate parameters for calculating KPIs such as CAC and ROAS.
 
-# Agente IA: Demo de Preguntas en Lenguaje Natural (Bonus)
+## Question Example
 
-Como demostración adicional, se implementó un workflow en n8n para resolver preguntas típicas de analistas usando lenguaje natural. El flujo combina un modelo de chat (OpenAI) y una herramienta de consulta automática que traduce la petición del usuario en parámetros adecuados para calcular KPIs como CAC y ROAS.
-
-Ejemplo de Pregunta
-Un usuario puede enviar la pregunta:
+A user can send the question:
 ```
-“¿Compara CAC y ROAS para los últimos 30 días vs los 30 días anteriores?”
+"Compare CAC and ROAS for the last 30 days vs the previous 30 days?"
 ```
 
-Mapeo y Ejecución Automática
-El workflow detecta el mensaje recibido en el chat.
+## Automatic Mapping and Execution
 
-El agente IA interpreta la intención y prepara los parámetros necesarios (end_date, days).
+1. The workflow detects the message received in the chat.
+2. The AI agent interprets the intention and prepares the necessary parameters (end_date, days).
+3. An automatic GET request is made to the /metrics endpoint, passing the necessary date parameters.
+4. The API returns a JSON response with comparative values for CAC and ROAS, including absolute and relative differences (%).
 
-Se realiza automáticamente una solicitud GET al endpoint /metrics, pasando los parámetros de fecha necesarios.
-
-El API retorna una respuesta JSON con los valores comparativos para CAC y ROAS, incluyendo las diferencias absolutas y relativas (%).
-
-Template de Mapeo
+## Mapping Template
 
 ```
-text
-Pregunta: "Compara CAC y ROAS para los últimos 30 días vs los 30 días anteriores."
+Question: "Compare CAC and ROAS for the last 30 days vs the previous 30 days."
 ↓
-Parámetros generados:
-- end_date = Fecha actual
+Generated Parameters:
+- end_date = Current date
 - days = 30
 
-Solicitud API:
-GET https://ccartag1906.app.n8n.cloud/webhook/metrics?end_date={hoy}&days=30
+API Request:
+GET https://ccartag1906.app.n8n.cloud/webhook/metrics?end_date={today}&days=30
 
-Respuesta:
+Response:
 {
   "metric": "CAC",
   "last_30_days": 29.81,
@@ -320,11 +318,10 @@ Respuesta:
   "delta_absolute": -2.46,
   "delta_percentage": "-7.63%"
 }
-
 ```
-## Ventajas
-Permite a usuarios no técnicos obtener análisis avanzado simplemente escribiendo preguntas al agente.
 
-El workflow puede ser extendido con otras métricas o modificar el rango temporal fácilmente.
+## Advantages
 
-Este ejemplo demuestra cómo conectar lenguaje natural y análisis de datos automatizado, facilitando la interpretación instantánea de KPIs en conversación con el agente IA.
+- Enables non-technical users to obtain advanced analysis simply by writing questions to the agent.
+- The workflow can be extended with other metrics or easily modify the time range.
+- This example demonstrates how to connect natural language with automated data analysis, facilitating instant interpretation of KPIs in conversation with the AI agent.
