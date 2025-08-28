@@ -1,0 +1,109 @@
+{
+  "name": "Metrics",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "metrics",
+        "responseMode": "lastNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1960fa66-10e5-49bd-adf9-42d960d416bc",
+      "name": "Webhook",
+      "webhookId": "c7295a8e-1be3-4da6-85ce-3c7a599b6ebf"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "assesmentia",
+          "mode": "list",
+          "cachedResultName": "assesmentia",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=assesmentia"
+        },
+        "sqlQuery": "-- Este SQL es simple porque el nodo 'Code' anterior ya preparó los datos.\nWITH date_ranges AS (\n    SELECT\n        DATE_SUB(CAST('{{ $json.end_date }}' AS DATE), INTERVAL {{ $json.days }} DAY) AS current_period_start,\n        CAST('{{ $json.end_date }}' AS DATE) AS current_period_end,\n        DATE_SUB(CAST('{{ $json.end_date }}' AS DATE), INTERVAL {{ $json.days }} * 2 DAY) AS prior_period_start,\n        DATE_SUB(CAST('{{ $json.end_date }}' AS DATE), INTERVAL {{ $json.days }} + 1 DAY) AS prior_period_end\n),\n-- ... (El resto de tu consulta SQL sin cambios)\nkpis_by_period AS (\n    SELECT\n        CASE\n            WHEN date BETWEEN (SELECT current_period_start FROM date_ranges) AND (SELECT current_period_end FROM date_ranges) THEN 'Last 30 Days'\n            WHEN date BETWEEN (SELECT prior_period_start FROM date_ranges) AND (SELECT prior_period_end FROM date_ranges) THEN 'Prior 30 Days'\n        END AS period,\n        SUM(spend) AS total_spend,\n        SUM(conversions) AS total_conversions,\n        SUM(conversions * 100) AS total_revenue \n    FROM\n        `assesmentia.ads_spend.campaign_data`\n    GROUP BY\n        period\n    HAVING \n        period IS NOT NULL\n),\nfinal_metrics AS (\n    SELECT\n        period,\n        SAFE_DIVIDE(total_spend, total_conversions) AS cac,\n        SAFE_DIVIDE(total_revenue, total_spend) AS roas\n    FROM\n        kpis_by_period\n),\ncomparison_table AS (\n    SELECT\n        'CAC' AS metric,\n        MAX(IF(period = 'Last 30 Days', cac, NULL)) AS current_period_value,\n        MAX(IF(period = 'Prior 30 Days', cac, NULL)) AS prior_period_value\n    FROM final_metrics\n    GROUP BY metric\n    \n    UNION ALL\n    \n    SELECT\n        'ROAS' AS metric,\n        MAX(IF(period = 'Last 30 Days', roas, NULL)) AS current_period_value,\n        MAX(IF(period = 'Prior 30 Days', roas, NULL)) AS prior_period_value\n    FROM final_metrics\n    GROUP BY metric\n)\nSELECT\n    metric,\n    ROUND(current_period_value, 2) AS last_30_days,\n    ROUND(prior_period_value, 2) AS prior_30_days,\n    ROUND(current_period_value - prior_period_value, 2) AS delta_absolute,\n    CONCAT(\n        CAST(ROUND(SAFE_DIVIDE(current_period_value - prior_period_value, prior_period_value) * 100, 2) AS STRING), \n        '%'\n    ) AS delta_percentage\nFROM\n    comparison_table;\n",
+        "options": {
+          "location": "us-south1"
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "6793ad8c-293e-4004-b8c7-f2e4cbcd5406",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "googleApi": {
+          "id": "cxvOYkFb0ls2S21M",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener el objeto 'query' de la entrada del webhook.\nconst query = $input.item.json.query;\n\n// Definir las variables con un chequeo explícito y seguro.\n// Esto SIEMPRE producirá un valor válido.\nconst end_date = (query && query.end_date) ? query.end_date : '2025-07-01';\nconst days = (query && query.days) ? query.days : 30;\n\n// Devolver un nuevo objeto JSON para que el siguiente nodo lo use.\n// Este es el resultado que pasará al nodo de BigQuery.\nreturn [{\n  json: {\n    end_date: end_date,\n    days: parseInt(days, 10) // Nos aseguramos de que 'days' sea un número entero.\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cadea76f-1157-4123-9601-7c776a105c04",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4b3af9d1-1337-4231-878c-60be66370525",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bc6701131ec479757ce1554749d27bd4050a0f1851fbddd38e5fef413988f794"
+  },
+  "id": "XflVAasB7Kj0aOUG",
+  "tags": []
+}

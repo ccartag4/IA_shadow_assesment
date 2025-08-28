@@ -1,0 +1,136 @@
+{
+  "name": "chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there! 👋\nMy name is Craig. any questions about the campaing?",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        32
+      ],
+      "id": "79f707aa-9422-4293-bd3e-9fe172db976f",
+      "name": "When chat message received",
+      "webhookId": "8c922039-50f8-4003-acc5-75ed8d78bf21"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Eres un asistente de datos para Shadow Light Studio. Tu única tarea es responder preguntas sobre CAC y ROAS.\n\n1.  Cuando un usuario te pida una comparación, tu objetivo es identificar el número de días a comparar.\n2.  Si el usuario dice \"últimos 30 días\", \"el último mes\", o no especifica un período, debes usar el número 30.\n3.  Debes invocar la herramienta `get_kpi_comparison` con el número de días que identificaste.\n4.  Una vez que recibas los datos de la herramienta, presenta la respuesta al usuario de forma clara y amigable.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        32
+      ],
+      "id": "d167bb29-70a6-4850-883e-5957827f38f1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        176,
+        208
+      ],
+      "id": "1f87abf1-5694-4411-b96e-b1fcac7aabd4",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "LqSvh9iDtT8e6eJw",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Usa esta herramienta para obtener la comparación de KPIs (CAC y ROAS) para un número específico de días.",
+        "url": "https://ccartag1906.app.n8n.cloud/webhook/metrics",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "end_date",
+              "value": "={{ new Date().toISOString().split('T') }}"
+            },
+            {
+              "name": "days",
+              "value": "={{ $parameters.days }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        368,
+        240
+      ],
+      "id": "f1551ebe-07f1-43f8-a256-36a9806291ed",
+      "name": "get_kpi_comparison"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_kpi_comparison": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e72d3407-1574-4b04-b828-823b2385c305",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bc6701131ec479757ce1554749d27bd4050a0f1851fbddd38e5fef413988f794"
+  },
+  "id": "yFXtTHzGt4k8KYd2",
+  "tags": []
+}

@@ -1,0 +1,151 @@
+{
+  "name": "Ingest",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/ccartag4/IA_shadow_assesment/main/ads_spend.csv",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; n8n)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "25239419-bc37-4cf0-818b-cc383ec0ce57",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PROCESAR CSV desde JSON - VERSIÓN PARA N8N (RECORDS INDIVIDUALES)\nconsole.log('=== INICIANDO PROCESAMIENTO ===');\n\n// Verificar estructura de items\nif (!items || items.length === 0) {\n  console.log('ERROR: No hay items disponibles');\n  return [{ json: { error: 'No hay datos disponibles' } }];\n}\n\n// Buscar los datos CSV\nlet csvData = null;\nif (items[0].data) {\n  csvData = items[0].data;\n} else if (items[0].binary && items[0].binary.data) {\n  csvData = items[0].binary.data;\n} else if (items[0].json && items[0].json.data) {\n  csvData = items[0].json.data;\n}\n\nif (!csvData || typeof csvData !== 'string') {\n  console.log('ERROR: No se encontraron datos CSV válidos');\n  return [{ json: { error: 'Datos CSV no encontrados' } }];\n}\n\nconsole.log('✅ CSV Data encontrado');\n\n// Procesar CSV\nconst lines = csvData.split('\\n').filter(line => line.trim());\nconst headers = lines[0].split(',');\nconsole.log('Headers:', headers);\n\n// Convertir a objetos\nconst data = [];\nfor (let i = 1; i < lines.length; i++) {\n  const values = lines[i].split(',');\n  if (values.length === headers.length) {\n    const row = {};\n    headers.forEach((header, index) => {\n      row[header.trim()] = values[index] ? values[index].trim() : '';\n    });\n    data.push(row);\n  }\n}\n\nconsole.log(`✅ Procesadas ${data.length} filas`);\n\n// RETORNAR RECORDS INDIVIDUALES CON MÉTRICAS CALCULADAS\nreturn data.map(row => {\n  // Convertir valores a números\n  const spend = parseFloat(row.spend) || 0;\n  const clicks = parseInt(row.clicks) || 0;\n  const impressions = parseInt(row.impressions) || 0;\n  const conversions = parseInt(row.conversions) || 0;\n  \n  // Calcular métricas por fila\n  const ctr = impressions > 0 ? parseFloat((clicks / impressions * 100).toFixed(2)) : 0;\n  const conversionRate = clicks > 0 ? parseFloat((conversions / clicks * 100).toFixed(2)) : 0;\n  const cpc = clicks > 0 ? parseFloat((spend / clicks).toFixed(2)) : 0;\n  const costPerConversion = conversions > 0 ? parseFloat((spend / conversions).toFixed(2)) : 0;\n  \n  return {\n    json: {\n      date: row.date,\n      platform: row.platform,\n      account: row.account,\n      campaign: row.campaign,\n      country: row.country,\n      device: row.device,\n      spend: spend,\n      clicks: clicks,\n      impressions: impressions,\n      conversions: conversions,\n      ctr: ctr,\n      conversion_rate: conversionRate,\n      cpc: cpc,\n      cost_per_conversion: costPerConversion,\n      // Campos adicionales útiles para análisis\n      impression_share: impressions > 0 ? 1 : 0,\n      revenue_estimate: conversions * 50, // Estimado $50 por conversión\n      profit_estimate: (conversions * 50) - spend\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        0
+      ],
+      "id": "42320658-76bc-4a7a-8318-88ade7fd52dc",
+      "name": "Code",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        96,
+        0
+      ],
+      "id": "4d4fa06a-044b-42f7-8f08-f9d6e8ed628e",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "assesmentia",
+          "mode": "list",
+          "cachedResultName": "assesmentia",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=assesmentia"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "ads_spend",
+          "mode": "list",
+          "cachedResultName": "ads_spend"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "campaign_data",
+          "mode": "list",
+          "cachedResultName": "campaign_data"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        0
+      ],
+      "id": "62512b4c-3443-47e4-a83f-f0601910c839",
+      "name": "Insert rows in a table",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "notesInFlow": true,
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "ZZH0xtd31ZehIXmY",
+          "name": "Google BigQuery account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8c444f8e-0ba3-4901-8b5a-b734759b515e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bc6701131ec479757ce1554749d27bd4050a0f1851fbddd38e5fef413988f794"
+  },
+  "id": "7RiX3zHUtcOlKagy",
+  "tags": []
+}
