@@ -270,7 +270,7 @@ An analyst can obtain KPIs by making a GET request to the endpoint, receiving th
 }
 ```
 
-![API Response](image-3.png)
+![API Response](images/image-3.png)
 
 ## Integration
 
