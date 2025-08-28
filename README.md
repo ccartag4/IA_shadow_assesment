@@ -167,7 +167,7 @@ return [{
 
 The "Execute SQL query" node uses the parameters (end_date, days) to compare KPIs between the two periods, grouping and calculating everything in a single query:
 
-![alt text](image-2.png)
+![alt text](images/image-2.png)
 
 Result in table format with current, previous values and their deltas (absolute and percentage):
 
