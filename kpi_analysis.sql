@@ -1,15 +1,15 @@
 /*
   ==================================================================================
-  Análisis de KPIs - SOLUCIÓN DEFINITIVA CON FECHA DE ANÁLISIS CORRECTA (2025)
+  Análisis de KPIs 
   ==================================================================================
 */
 
--- Paso 1: CORREGIR la fecha de análisis para que coincida con los datos reales.
+-- Paso 1: fecha de análisis.
 WITH static_analysis_date AS (
     SELECT DATE('2025-07-01') AS analysis_date -- <-- ¡ESTA ES LA CORRECCIÓN CLAVE!
 ),
 
--- Paso 2: Definir los rangos de fechas (ahora para Mayo y Junio de 2025).
+-- Paso 2: Definir los rangos de fechas .
 date_ranges AS (
     SELECT
         DATE_SUB((SELECT analysis_date FROM static_analysis_date), INTERVAL 30 DAY) AS current_period_start,
@@ -18,7 +18,7 @@ date_ranges AS (
         DATE_SUB((SELECT analysis_date FROM static_analysis_date), INTERVAL 31 DAY) AS prior_period_end
 ),
 
--- Paso 3: Agregar las métricas por período (no se necesita PARSE_DATE).
+-- Paso 3: Agregar las métricas por período.
 kpis_by_period AS (
     SELECT
         CASE
@@ -77,5 +77,6 @@ SELECT
     ) AS delta_percentage
 FROM
     comparison_table;
+
 
 
