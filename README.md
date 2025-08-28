@@ -171,6 +171,8 @@ The "Execute SQL query" node uses the parameters (end_date, days) to compare KPI
 
 Result in table format with current, previous values and their deltas (absolute and percentage):
 
+File: `kpi_analysis.sql`
+
 ```sql
 WITH date_ranges AS (
     SELECT
@@ -329,4 +331,4 @@ Response:
 ## n8n Access
 
 - Workflow URL: [https://ccartag1906.app.n8n.cloud/workflow/7RiX3zHUtcOlKagy](https://ccartag1906.app.n8n.cloud/workflow/7RiX3zHUtcOlKagy)
-- Exported Workflow: See `workflow_ingestion.json` in this repository
+- Exported Workflow: See `n8n_workflows` in this repository
