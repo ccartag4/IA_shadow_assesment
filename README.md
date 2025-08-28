@@ -325,3 +325,8 @@ Response:
 - Enables non-technical users to obtain advanced analysis simply by writing questions to the agent.
 - The workflow can be extended with other metrics or easily modify the time range.
 - This example demonstrates how to connect natural language with automated data analysis, facilitating instant interpretation of KPIs in conversation with the AI agent.
+
+## n8n Access
+
+- Workflow URL: [https://ccartag1906.app.n8n.cloud/workflow/7RiX3zHUtcOlKagy](https://ccartag1906.app.n8n.cloud/workflow/7RiX3zHUtcOlKagy)
+- Exported Workflow: See `workflow_ingestion.json` in this repository
